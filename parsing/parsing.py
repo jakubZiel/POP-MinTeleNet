@@ -158,7 +158,9 @@ def parseAdmissablePaths(file) ->  None:
     return all_admissable_paths 
 
 
-parseNodes("./polska/polska.txt")
-parseLinks("./polska/polska.txt")
-parseDemands("./polska/polska.txt")
-parseAdmissablePaths("./polska/polska.txt")
+
+if __name__ == "__main__":
+    parseNodes("./polska/polska.txt")
+    parseLinks("./polska/polska.txt")
+    parseDemands("./polska/polska.txt")
+    parseAdmissablePaths("./polska/polska.txt")
