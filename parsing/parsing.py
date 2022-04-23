@@ -152,11 +152,9 @@ def parseAdmissablePaths(file) ->  None:
                     AdmissablePaths(
                         demand_id,
                         paths
-                        )
                     )
-                                            
-
-
+                )
+                                
     return all_admissable_paths 
 
 
