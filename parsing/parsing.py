@@ -1,12 +1,5 @@
 from typing import List, Tuple
-from dataclasses import dataclass
-
-
-@dataclass
-class Node:
-    city : str
-    longitude : int
-    latitude : int
+from model.data_model import Node, Link, AdmissablePaths, Demand, Path
 
 def parseNodes(file : str) -> List[Node] :
 
@@ -31,18 +24,6 @@ def parseNodes(file : str) -> List[Node] :
                     )
                 )
     return nodes
-
-
-@dataclass
-class Link:
-    id : str
-    source : str
-    target : int
-    pre_installed_capacity : int
-    pre_installed_capacity_cost : int
-    routing_cost : int
-    setup_cost : int
-    modules : List[Tuple[int, int]]
 
 
 def parseLinks(file : str) -> List[Link] :
@@ -77,15 +58,6 @@ def parseLinks(file : str) -> List[Link] :
                 )
     return links
 
-
-@dataclass
-class Demand:
-    id : str
-    source : str
-    target : str
-    routing_unit : int
-    demand_value : float
-
 def parseDemands(file : str) -> List[Demand] :
 
     demands = []
@@ -111,16 +83,6 @@ def parseDemands(file : str) -> List[Demand] :
                     )
                 )
     return demands 
-
-@dataclass
-class Path:
-    links : List[Link]
-
-@dataclass
-class AdmissablePaths:
-    demand_id : str
-    paths : List[str]
-
 
 def parseAdmissablePaths(file) ->  None: 
     all_admissable_paths = []
