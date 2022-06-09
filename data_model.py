@@ -34,6 +34,5 @@ class AdmissablePaths:
 
 @dataclass
 class Specimen:
-    demand_id: str
-    paths_usage: List[float]
+    demands: List[Tuple[str, List[float]]]
     fitness: float

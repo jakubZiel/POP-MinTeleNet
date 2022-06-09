@@ -1,18 +1,23 @@
+from audioop import avg
 import math
 from random import randint, random
-from model.data_model import Demand, Link, Specimen
 from typing import List, Tuple
+
+from data_model import Demand, Link, Specimen
+
 
 class Evolution:
     
-    def __init__(self, demands : List[Demand], links : List[Link], modulity : int, 
+    def __init__(self, 
+        demands : List[Demand], links : List[Link], modularity : int, aggregation : bool,
         population_size : int, crossover_prob : float, mutation_prob : float,
         mutation_power : float, tournament_size : int, 
         target_fitness : float, max_epochs : int, stale_epochs_limit : int):
         
         self.demands = demands
         self.links = links
-        self.modulity = modulity
+        self.modularity = modularity
+        self.aggregation = aggregation
 
         self.population_size = population_size
         self.crossover_prob = crossover_prob
@@ -27,9 +32,8 @@ class Evolution:
         self.population : List[Specimen] = []
         self.best_fitness = -math.inf
         self.current_generation = 0
-        self.log = List[List[Specimen]] = []
+        self.log : List[List[Specimen]] = []
         self.stale_generations_count = 0
-
 
     def run(self):
         self.population = self.create_init_population()
@@ -56,6 +60,22 @@ class Evolution:
             self.current_generation += 1    
 
     def continue_condition(self) -> bool:
+        if self.best_fitness >= self.target_fitness:
+            return False
+
+        if self.current_generation >= self.max_epochs: 
+            return False
+
+        prev_best_fitness = self.log[len(self.log) - 1][0].fitness
+        best_got_better = self.best_fitness > prev_best_fitness
+
+        if best_got_better:
+            self.stale_epochs_limit = 0
+        elif self.stale_generations_count + 1 >= self.stale_epochs_limit:
+            return False
+        else:
+            self.stale_generations_count += 1 
+
         return True
 
     def calc_fitness(self, demands) -> int:
@@ -68,7 +88,7 @@ class Evolution:
                     if link in path:
                         load += path.value * demand.value
 
-            modules += self.edge_capacity(self.modulity, load)
+            modules += self.edge_capacity(self.modularity, load)
             
         return modules
 
@@ -92,9 +112,9 @@ class Evolution:
         return 0
     
     def edge_capacity(self, o : int) -> int:
-        if self.modulity <= 0:
+        if self.modularity <= 0:
             raise ValueError("modulity must be positive")
-        return math.ceil(o / self.modulity)
+        return math.ceil(o / self.modularity)
     
     def select(self) -> Specimen:
         tournament : List[Specimen] = []
@@ -108,10 +128,49 @@ class Evolution:
         return tournament[0]
 
     def mutation(self, specimen : Specimen) -> Specimen:
+        return self.mutation_aggregate(specimen) if self.aggregation else self.mutation_no_aggregate(specimen)
+
+    def mutation_aggregate(self, specimen : Specimen) -> Specimen:
+        return None
+
+    def mutation_no_aggregate(self, specimen: Specimen) -> Specimen:
         return None
 
     def crossover(self, pair : Tuple[Specimen, Specimen]) -> Specimen:
-        return None
+        return self.crossover_aggregate(pair) if self.aggregation else self.crossover_no_aggregate(pair)
+
+    def crossover_aggregate(self, pair : Tuple[Specimen, Specimen]) -> Specimen:
+        parent1, parent2 = pair
+        
+        crossover_geonome  : List[Tuple[str, List[float]]] = []
+
+        for demand_index in range(0, len(parent1.demands)):
+
+            if random() > 0.5:
+                crossover_geonome.append(parent1[demand_index])
+            else:
+                crossover_geonome.append(parent2[demand_index])
+                
+        return Specimen(crossover_geonome, None)
+
+    def crossover_no_aggregate(self,  pair : Tuple[Specimen, Specimen]) -> Specimen:
+        parent1, parent2 = pair
+        demands1 = parent1.demands
+        demands2 = parent2.demands
+
+        crossover_genome : List[Tuple[str, List[float]]] = []
+
+        for demand_index in range(0, len(demands1)):
+            crossover_demand : List[float] = []
+            _, demand_id = demands1[demand_index]
+
+            for path_index in len(parent1.demands[0]):
+                path_usage = avg(demands1[demand_index][path_index], demands2[demand_index][path_index])    
+                crossover_demand.append(path_usage)    
+            
+            crossover_genome.append((crossover_demand, demand_id))
+
+        return Specimen(crossover_genome, None)
 
     def create_init_population(self) -> List[Specimen]:
         return []
@@ -123,7 +182,10 @@ class Evolution:
         return random() <= self.mutation_prob
 
     def evaluate_population(self, population : List[Specimen]) -> None:        
+        
         for spec in population:
             spec.fitness = self.calc_fitness_aggregate(self.demands)
             self.best_fitness = max(self.best_fitness, spec.fitness)
 
+if __name__ == "__main__":
+    print("Evolution Algorithm")

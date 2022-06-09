@@ -1,5 +1,5 @@
 from typing import List, Tuple
-from model.data_model import Node, Link, AdmissablePaths, Demand, Path
+from data_model import Node, Link, AdmissablePaths, Demand, Path
 
 def parseNodes(file : str) -> List[Node] :
 
