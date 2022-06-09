@@ -173,7 +173,7 @@ class Evolution:
             _, demand = specimen.demands[demand_to_mutate_index]
 
             for path_index in range(0, len(demand)):
-                demand[path_index] += mutation_vector[path_index]            
+                demand[path_index] = abs(demand[path_index] + mutation_vector[path_index])            
             
             specimen.demands[demand_to_mutate_index] = self.normalize_demand(demand)
             
@@ -206,9 +206,9 @@ class Evolution:
         for demand_index in range(0, len(demands1)):
             crossover_demand : List[float] = []
             _, demand_id = demands1[demand_index]
-
+    
             for path_index in len(parent1.demands[0]):
-                path_usage = avg(demands1[demand_index][path_index], demands2[demand_index][path_index])    
+                path_usage = (demands1[demand_index][path_index] + demands2[demand_index][path_index]) / 2   
                 crossover_demand.append(path_usage)    
             
             crossover_genome.append((crossover_demand, demand_id))
@@ -216,7 +216,12 @@ class Evolution:
         return Specimen(crossover_genome, None)
 
     def normalize_demand(demand : List[float]) -> List[float]:
-        return []
+        demand_sum = sum(demand)
+        
+        for index in range(0, len(demand)):
+            demand[index] /= demand_sum
+        
+        return demand
 
     def create_init_population(self) -> List[Specimen]:
         return []
