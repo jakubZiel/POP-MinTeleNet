@@ -226,6 +226,12 @@ class Evolution:
     def create_init_population(self) -> List[Specimen]:
         return []
 
+    def init_population_aggregate(self) -> List[Specimen]:
+        return []
+
+    def init_population_no_aggregate(self) -> List[Specimen]:
+        return []
+
     def should_crossover(self) -> bool:
         return random() <= self.crossover_prob
 
