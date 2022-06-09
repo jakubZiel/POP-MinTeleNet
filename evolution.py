@@ -224,7 +224,7 @@ class Evolution:
         return demand
 
     def create_init_population(self) -> List[Specimen]:
-        return []
+        return self.init_population_aggregate() if self.aggregation else self.init_population_no_aggregate()
 
     def init_population_aggregate(self) -> List[Specimen]:
         return []
