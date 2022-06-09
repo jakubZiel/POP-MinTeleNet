@@ -114,7 +114,7 @@ class Evolution:
     
     def edge_capacity(self, o : int) -> int:
         if self.modularity <= 0:
-            raise ValueError("modulity must be positive")
+            raise ValueError("modularity must be positive")
         return math.ceil(o / self.modularity)
     
     def select(self) -> Specimen:
