@@ -31,3 +31,9 @@ class Link:
 class AdmissablePaths:
     demand_id : str
     paths : List[str]
+
+@dataclass
+class Specimen:
+    demand_id: str
+    paths_usage: List[float]
+    fitness: float
