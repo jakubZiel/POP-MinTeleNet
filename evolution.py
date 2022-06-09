@@ -2,7 +2,7 @@ from audioop import avg
 import math
 from random import randint, random
 from typing import List, Tuple
-
+from numpy import random
 from data_model import Demand, Link, Specimen
 
 
@@ -10,8 +10,8 @@ class Evolution:
     
     def __init__(self, 
         demands : List[Demand], links : List[Link], modularity : int, aggregation : bool,
-        population_size : int, crossover_prob : float, mutation_prob : float,
-        mutation_power : float, tournament_size : int, 
+        population_size : int, crossover_prob : float, tournament_size : int,
+        mutation_prob : float, mutation_power : float, mutation_range : int, 
         target_fitness : float, max_epochs : int, stale_epochs_limit : int):
         
         self.demands = demands
@@ -23,6 +23,7 @@ class Evolution:
         self.crossover_prob = crossover_prob
         self.mutation_prob = mutation_prob
         self.mutation_power = mutation_power
+        self.mutation_range = mutation_range
         self.tournament_size = tournament_size
 
         self.target_fitness  = target_fitness
@@ -130,11 +131,53 @@ class Evolution:
     def mutation(self, specimen : Specimen) -> Specimen:
         return self.mutation_aggregate(specimen) if self.aggregation else self.mutation_no_aggregate(specimen)
 
+    def get_demands_to_mutate(self, specimen : Specimen) -> List[int]:
+        demand_ids = list(range(0, len(specimen.demands)))
+        demands_to_mutate : List[int] = []
+        
+        for _ in range(self.mutation_range):
+            chosen_demand_index = randint(0, len(demand_ids) - 1)
+            chosen_demand_id = demand_ids[chosen_demand_index]
+
+            demand_ids.remove(chosen_demand_index)
+            demands_to_mutate.append(chosen_demand_id)
+        return demands_to_mutate
+
     def mutation_aggregate(self, specimen : Specimen) -> Specimen:
-        return None
+        demands_to_mutate = self.get_demands_to_mutate(specimen)
+        
+        demands = specimen.demands
+
+        for demand_to_mutate in demands_to_mutate:
+            DEMAND_PATHS = len(demands[demand_to_mutate])
+
+            new_path = randint(0, DEMAND_PATHS - 1)
+            
+            new_demand = [0.0] * DEMAND_PATHS
+            new_demand[new_path] = 1.0
+
+            demands[demand_to_mutate] = new_demand
+
+        return specimen
 
     def mutation_no_aggregate(self, specimen: Specimen) -> Specimen:
-        return None
+        demands_to_mutate = self.get_demands_to_mutate(specimen)
+        DEMAND_PATHS = len(specimen.demands[0])
+
+        for demand_to_mutate_index in demands_to_mutate:
+            mutation_vector = [0.0] * DEMAND_PATHS
+
+            for path_index in range(0, DEMAND_PATHS):
+                mutation_vector[path_index] = random.normal(0, self.mutation_power)
+
+            _, demand = specimen.demands[demand_to_mutate_index]
+
+            for path_index in range(0, len(demand)):
+                demand[path_index] += mutation_vector[path_index]            
+            
+            specimen.demands[demand_to_mutate_index] = self.normalize_demand(demand)
+            
+        return specimen
 
     def crossover(self, pair : Tuple[Specimen, Specimen]) -> Specimen:
         return self.crossover_aggregate(pair) if self.aggregation else self.crossover_no_aggregate(pair)
@@ -171,6 +214,9 @@ class Evolution:
             crossover_genome.append((crossover_demand, demand_id))
 
         return Specimen(crossover_genome, None)
+
+    def normalize_demand(demand : List[float]) -> List[float]:
+        return []
 
     def create_init_population(self) -> List[Specimen]:
         return []
