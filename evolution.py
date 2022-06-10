@@ -36,7 +36,7 @@ class Evolution:
         self.log : List[List[Specimen]] = []
         self.stale_generations_count = 0
 
-    def run(self):
+    def run(self) -> Tuple[float, List[Specimen]]:
         self.population = self.create_init_population()
 
         while self.continue_condition():
@@ -58,8 +58,10 @@ class Evolution:
 
             self.log.append(self.population)
             self.population = next_pop
-            self.current_generation += 1    
+            self.current_generation += 1  
 
+        return self.best_fitness, self.log
+    
     def continue_condition(self) -> bool:
         if self.best_fitness >= self.target_fitness:
             return False
