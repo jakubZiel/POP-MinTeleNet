@@ -232,7 +232,7 @@ class Evolution:
         init_population : List[Specimen] = []
 
         for _ in range(self.population):
-            new_genome = []
+            new_genome : List[Specimen] = []
             for _ in range(len(self.demands)):
                 new_gene = [0.0] * paths
                 random_index = randint(0, paths)
@@ -248,18 +248,16 @@ class Evolution:
     def init_population_no_aggregate(self) -> List[Specimen]:
         paths = len(self.demands[0].admissable_paths.paths)
         init_population : List[Specimen] = []
-
         for _ in range(self.population):
             new_genome : List[float] = []
 
             for _ in range(len(self.demands)):
                 new_gene = numpy.random.uniform(0.0, 1.0, paths).tolist()
-
-            new_gene = self.normalize_demand(new_gene)
-
-            new_genome.append(new_gene)
+                new_gene = self.normalize_demand(new_gene)
+                new_genome.append(new_gene)
+            
+            init_population.append(Specimen(new_genome, None))
         
-        init_population.append(Specimen(new_genome, None))
         self.evaluate_population(init_population)
 
         return init_population
