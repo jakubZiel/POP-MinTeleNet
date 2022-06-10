@@ -1,4 +1,3 @@
-from audioop import avg
 import math
 from random import randint, random
 from typing import List, Tuple
