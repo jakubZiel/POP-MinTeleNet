@@ -2,9 +2,9 @@ import math
 from random import randint, random
 from typing import Dict, List, Tuple
 
-import numpy
+import numpy as np
 
-from data_model import AdmissablePaths, Demand, Link, Specimen
+from data_model import Demand, Link, Specimen
 
 
 class Evolution:
@@ -23,7 +23,6 @@ class Evolution:
         target_fitness: float,
         max_epochs: int,
         stale_epochs_limit: int,
-        admissable_paths: List[AdmissablePaths],
     ):
         self.demands = {demand.id: demand for demand in demands}
         self.links = links
@@ -46,10 +45,6 @@ class Evolution:
         self.current_generation = 0
         self.log: List[List[Specimen]] = []
         self.stale_generations_count = 0
-
-        self.admissable_paths = {
-            path.demand_id: path.paths for path in admissable_paths
-        }
 
     def run(self) -> Tuple[float, List[List[Specimen]]]:
         self.population = self.create_init_population()
@@ -103,13 +98,13 @@ class Evolution:
         link_loads: Dict[str, float] = {link.id: 0.0 for link in self.links}
 
         for demand_id, demand_uses in spec.demands:
-            demand_value: float = self.demands[demand_id].demand_value
-            paths: List[List[str]] = self.admissable_paths[demand_id]
+            demand: Demand = self.demands[demand_id]
+            paths: List[List[str]] = demand.admissable_paths.paths
             for i in range(0, len(demand_uses)):
                 path: List[str] = paths[i]
                 use: float = demand_uses[i]
                 for p in path:
-                    link_loads[p] += use * demand_value
+                    link_loads[p] += use * demand.demand_value
 
         for load in link_loads.values():
             modules += self.edge_capacity(load)
@@ -176,9 +171,7 @@ class Evolution:
             mutation_vector = [0.0] * DEMAND_PATHS
 
             for path_index in range(0, DEMAND_PATHS):
-                mutation_vector[path_index] = numpy.random.normal(
-                    0, self.mutation_power
-                )
+                mutation_vector[path_index] = np.random.normal(0, self.mutation_power)
 
             _, demand = specimen.demands[demand_to_mutate_index]
 
@@ -254,10 +247,43 @@ class Evolution:
         )
 
     def init_population_aggregate(self) -> List[Specimen]:
-        return []
+        demands = list(self.demands.values())
+        paths = len(demands[0].admissable_paths.paths)
+        init_population : List[Specimen] = []
+
+        for _ in range(len(self.population)):
+            new_genome : List[Tuple[str, List[float]]] = []
+
+            for i_demand in range(len(self.demands)):
+                new_gene = [0.0] * paths
+                random_index = randint(0, paths)
+                new_gene[random_index] = 1.0
+                new_genome.append((demands[i_demand].id, new_gene))
+
+            init_population.append(Specimen(new_genome, 0.0))
+
+        self.evaluate_population(init_population)
+         
+        return init_population
 
     def init_population_no_aggregate(self) -> List[Specimen]:
-        return []
+        demands = list(self.demands.values())
+        paths = len(demands[0].admissable_paths.paths)
+        init_population : List[Specimen] = []
+       
+        for _ in range(len(self.population)):
+            new_genome : List[Tuple[str, List[float]]] = []
+
+            for i_demand in range(len(self.demands)):
+                new_gene = np.random.uniform(0.0, 1.0, paths).tolist()
+                new_gene = self.normalize_demand(new_gene)
+                new_genome.append((demands[i_demand].id, new_gene))
+            
+            init_population.append(Specimen(new_genome, 0.0))
+        
+        self.evaluate_population(init_population)
+
+        return init_population
 
     def should_crossover(self) -> bool:
         return random() <= self.crossover_prob

@@ -1,22 +1,25 @@
 from dataclasses import dataclass
 from typing import List, Tuple
 
-
 @dataclass
 class Node:
     city: str
     longitude: int
     latitude: int
 
+@dataclass
+class AdmissablePaths:
+    demand_id : str
+    paths : List[List[str]]
 
 @dataclass
 class Demand:
-    id: str
-    source: str
-    target: str
-    routing_unit: int
-    demand_value: float
-
+    id : str
+    source : str
+    target : str
+    routing_unit : int
+    demand_value : float
+    admissable_paths : AdmissablePaths
 
 @dataclass
 class Link:
@@ -28,13 +31,6 @@ class Link:
     routing_cost: int
     setup_cost: int
     modules: List[Tuple[int, int]]
-
-
-@dataclass
-class AdmissablePaths:
-    demand_id: str
-    paths: List[List[str]]
-
 
 @dataclass
 class Specimen:
