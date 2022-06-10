@@ -1,7 +1,7 @@
 import math
 from random import randint, random
 from typing import List, Tuple
-import numpy
+import numpy as np
 from data_model import Demand, Link, Specimen
 
 
@@ -169,7 +169,7 @@ class Evolution:
             mutation_vector = [0.0] * DEMAND_PATHS
 
             for path_index in range(0, DEMAND_PATHS):
-                mutation_vector[path_index] = numpy.random.normal(0, self.mutation_power)
+                mutation_vector[path_index] = np.random.normal(0, self.mutation_power)
 
             _, demand = specimen.demands[demand_to_mutate_index]
 
@@ -233,7 +233,7 @@ class Evolution:
 
         for _ in range(self.population):
             new_genome : List[Specimen] = []
-            
+
             for _ in range(len(self.demands)):
                 new_gene = [0.0] * paths
                 random_index = randint(0, paths)
@@ -254,7 +254,7 @@ class Evolution:
             new_genome : List[float] = []
 
             for _ in range(len(self.demands)):
-                new_gene = numpy.random.uniform(0.0, 1.0, paths).tolist()
+                new_gene = np.random.uniform(0.0, 1.0, paths).tolist()
                 new_gene = self.normalize_demand(new_gene)
                 new_genome.append(new_gene)
             
