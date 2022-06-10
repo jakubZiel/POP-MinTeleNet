@@ -1,0 +1,21 @@
+[tool.pyright]
+typeCheckingMode = "strict"
+
+pythonVersion = "3.10"
+pythonPlatform = "Linux"
+
+useLibraryCodeForTypes = true
+
+reportMissingTypeArgument = "error"
+reportImportCycles = "error"
+
+reportUnusedClass = "warning"
+reportUnusedImport = "warning"
+reportUnusedFunction = "warning"
+reportUnusedVariable = "warning"
+
+[tool.black]
+skip-magic-trailing-comma = true
+
+[tool.isort]
+profile = "black"
