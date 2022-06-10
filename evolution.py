@@ -123,7 +123,7 @@ class Evolution:
         tournament : List[Specimen] = []
 
         for _ in range(self.tournament_size):
-            specimen_index = randint(0, self.population_size)
+            specimen_index = randint(0, self.population_size - 1)
             tournament.append(self.population[specimen_index])            
         
         tournament.sort(key=lambda spec: spec.fitness, reverse=True)
@@ -192,9 +192,9 @@ class Evolution:
         for demand_index in range(0, len(parent1.demands)):
 
             if random() > 0.5:
-                crossover_geonome.append(parent1[demand_index])
+                crossover_geonome.append(parent1.demands[demand_index])
             else:
-                crossover_geonome.append(parent2[demand_index])
+                crossover_geonome.append(parent2.demands[demand_index])
                 
         return Specimen(crossover_geonome, None)
 
