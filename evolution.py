@@ -1,10 +1,14 @@
+import json
 import math
+import sys
+from pathlib import Path
 from random import randint, random
 from typing import Dict, List, Tuple
 
 import numpy as np
 
-from data_model import Demand, Link, Specimen
+from data_model import Demand, Link, LinkResult, Result, Specimen
+from parsing import NetworkParser
 
 
 class Evolution:
@@ -25,7 +29,7 @@ class Evolution:
         stale_epochs_limit: int,
     ):
         self.demands = {demand.id: demand for demand in demands}
-        self.links = links
+        self.links = {link.id: link for link in links}
         self.modularity = modularity
         self.aggregation = aggregation
 
@@ -41,17 +45,20 @@ class Evolution:
         self.stale_epochs_limit = stale_epochs_limit
 
         self.population: List[Specimen] = []
-        self.best_fitness = -math.inf
+        self.best_specimen = Specimen([], sys.maxsize)
+        self.prev_best_fitness = math.inf
         self.current_generation = 0
         self.log: List[List[Specimen]] = []
         self.stale_generations_count = 0
 
-    def run(self) -> Tuple[float, List[List[Specimen]]]:
+    def run(self) -> None:
         self.population = self.create_init_population()
+        self.evaluate_population()
+        self.population.sort(key=lambda spec: spec.fitness)
+        self.log.append(self.population)
 
         while self.continue_condition():
             next_pop: List[Specimen] = []
-
             for _ in range(self.population_size):
                 if self.should_crossover():
                     parent1 = self.select()
@@ -64,25 +71,21 @@ class Evolution:
                     next_spec = self.mutation(self.select())
                     next_pop.append(next_spec)
 
-            self.evaluate_population(next_pop)
-
-            self.population.sort(key=lambda spec: spec.fitness, reverse=True)
-            self.log.append(self.population)
-
             self.population = next_pop
             self.current_generation += 1
-
-        return self.best_fitness, self.log
+            self.evaluate_population()
+            self.population.sort(key=lambda spec: spec.fitness)
+            self.log.append(self.population)
 
     def continue_condition(self) -> bool:
-        if self.best_fitness >= self.target_fitness:
+        if self.best_specimen.fitness <= self.target_fitness:
             return False
 
         if self.current_generation >= self.max_epochs:
             return False
 
-        prev_best_fitness = self.log[len(self.log) - 1][0].fitness
-        best_got_better = self.best_fitness > prev_best_fitness
+        best_got_better = self.best_specimen.fitness < self.prev_best_fitness
+        self.prev_best_fitness = min(self.prev_best_fitness, self.best_specimen.fitness)
 
         if best_got_better:
             self.stale_generations_count = 0
@@ -95,16 +98,16 @@ class Evolution:
 
     def calc_fitness(self, spec: Specimen) -> int:
         modules = 0
-        link_loads: Dict[str, float] = {link.id: 0.0 for link in self.links}
+        link_loads: Dict[str, float] = {link.id: 0.0 for link in self.links.values()}
 
         for demand_id, demand_uses in spec.demands:
             demand: Demand = self.demands[demand_id]
             paths: List[List[str]] = demand.admissable_paths.paths
-            for i in range(0, len(demand_uses)):
-                path: List[str] = paths[i]
+            for i in range(len(demand_uses)):
+                links: List[str] = paths[i]
                 use: float = demand_uses[i]
-                for p in path:
-                    link_loads[p] += use * demand.demand_value
+                for link in links:
+                    link_loads[link] += use * demand.demand_value
 
         for load in link_loads.values():
             modules += self.edge_capacity(load)
@@ -123,7 +126,7 @@ class Evolution:
             specimen_index = randint(0, self.population_size - 1)
             tournament.append(self.population[specimen_index])
 
-        tournament.sort(key=lambda spec: spec.fitness, reverse=True)
+        tournament.sort(key=lambda spec: spec.fitness)
 
         return tournament[0]
 
@@ -152,11 +155,11 @@ class Evolution:
         demands = specimen.demands
 
         for demand_to_mutate in demands_to_mutate:
-            DEMAND_PATHS = len(demands[demand_to_mutate])
+            demand_paths = len(demands[demand_to_mutate])
 
-            new_path = randint(0, DEMAND_PATHS - 1)
+            new_path = randint(0, demand_paths - 1)
 
-            new_demand = [0.0] * DEMAND_PATHS
+            new_demand = [0.0] * demand_paths
             new_demand[new_path] = 1.0
 
             demands[demand_to_mutate] = (demands[demand_to_mutate][0], new_demand)
@@ -165,17 +168,17 @@ class Evolution:
 
     def mutation_no_aggregate(self, specimen: Specimen) -> Specimen:
         demands_to_mutate = self.get_demands_to_mutate(specimen)
-        DEMAND_PATHS = len(specimen.demands[0])
+        demand_paths = len(specimen.demands[0])
 
         for demand_to_mutate_index in demands_to_mutate:
-            mutation_vector = [0.0] * DEMAND_PATHS
+            mutation_vector = [0.0] * demand_paths
 
-            for path_index in range(0, DEMAND_PATHS):
+            for path_index in range(demand_paths):
                 mutation_vector[path_index] = np.random.normal(0, self.mutation_power)
 
             _, demand = specimen.demands[demand_to_mutate_index]
 
-            for path_index in range(0, len(demand)):
+            for path_index in range(len(demand)):
                 demand[path_index] = abs(
                     demand[path_index] + mutation_vector[path_index]
                 )
@@ -199,14 +202,14 @@ class Evolution:
 
         crossover_geonome: List[Tuple[str, List[float]]] = []
 
-        for demand_index in range(0, len(parent1.demands)):
+        for demand_index in range(len(parent1.demands)):
 
             if random() > 0.5:
                 crossover_geonome.append(parent1.demands[demand_index])
             else:
                 crossover_geonome.append(parent2.demands[demand_index])
 
-        return Specimen(crossover_geonome, 0.0)
+        return Specimen(crossover_geonome, sys.maxsize)
 
     def crossover_no_aggregate(self, pair: Tuple[Specimen, Specimen]) -> Specimen:
         parent1, parent2 = pair
@@ -228,13 +231,13 @@ class Evolution:
 
             crossover_genome.append((demand_id, crossover_demand))
 
-        return Specimen(crossover_genome, 0.0)
+        return Specimen(crossover_genome, sys.maxsize)
 
     @staticmethod
     def normalize_demand(demand: List[float]) -> List[float]:
         demand_sum = sum(demand)
 
-        for index in range(0, len(demand)):
+        for index in range(len(demand)):
             demand[index] /= demand_sum
 
         return demand
@@ -249,39 +252,35 @@ class Evolution:
     def init_population_aggregate(self) -> List[Specimen]:
         demands = list(self.demands.values())
         paths = len(demands[0].admissable_paths.paths)
-        init_population : List[Specimen] = []
+        init_population: List[Specimen] = []
 
-        for _ in range(len(self.population)):
-            new_genome : List[Tuple[str, List[float]]] = []
+        for _ in range(self.population_size):
+            new_genome: List[Tuple[str, List[float]]] = []
 
             for i_demand in range(len(self.demands)):
                 new_gene = [0.0] * paths
-                random_index = randint(0, paths)
+                random_index = randint(0, paths - 1)
                 new_gene[random_index] = 1.0
                 new_genome.append((demands[i_demand].id, new_gene))
 
-            init_population.append(Specimen(new_genome, 0.0))
+            init_population.append(Specimen(new_genome, sys.maxsize))
 
-        self.evaluate_population(init_population)
-         
         return init_population
 
     def init_population_no_aggregate(self) -> List[Specimen]:
         demands = list(self.demands.values())
         paths = len(demands[0].admissable_paths.paths)
-        init_population : List[Specimen] = []
-       
-        for _ in range(len(self.population)):
-            new_genome : List[Tuple[str, List[float]]] = []
+        init_population: List[Specimen] = []
+
+        for _ in range(self.population_size):
+            new_genome: List[Tuple[str, List[float]]] = []
 
             for i_demand in range(len(self.demands)):
                 new_gene = np.random.uniform(0.0, 1.0, paths).tolist()
                 new_gene = self.normalize_demand(new_gene)
                 new_genome.append((demands[i_demand].id, new_gene))
-            
-            init_population.append(Specimen(new_genome, 0.0))
-        
-        self.evaluate_population(init_population)
+
+            init_population.append(Specimen(new_genome, sys.maxsize))
 
         return init_population
 
@@ -291,11 +290,56 @@ class Evolution:
     def should_mutate(self) -> bool:
         return random() <= self.mutation_prob
 
-    def evaluate_population(self, population: List[Specimen]) -> None:
-        for spec in population:
+    def evaluate_population(self) -> None:
+        for spec in self.population:
             spec.fitness = self.calc_fitness(spec)
-            self.best_fitness = max(self.best_fitness, spec.fitness)
+            if spec.fitness < self.best_specimen.fitness:
+                self.best_specimen = spec
+
+    def present_specimen(self, spec: Specimen) -> List[LinkResult]:
+        link_loads: Dict[str, float] = {link.id: 0.0 for link in self.links.values()}
+        for demand_id, demand_uses in spec.demands:
+            demand: Demand = self.demands[demand_id]
+            paths: List[List[str]] = demand.admissable_paths.paths
+            for i in range(len(demand_uses)):
+                links: List[str] = paths[i]
+                use: float = demand_uses[i]
+                for link in links:
+                    link_loads[link] += use * demand.demand_value
+        return [
+            {
+                "id": self.links[link_id].id,
+                "source": self.links[link_id].source,
+                "target": self.links[link_id].target,
+                "modules": self.edge_capacity(load),
+            }
+            for link_id, load in link_loads.items()
+        ]
+
+    def get_result(self) -> Result:
+        return {
+            "log": [[s.fitness for s in specs] for specs in self.log],
+            "links": self.present_specimen(self.best_specimen),
+            "modules": self.best_specimen.fitness,
+        }
 
 
 if __name__ == "__main__":
-    print("Evolution Algorithm")
+    parser = NetworkParser(Path("polska/polska.xml"))
+    evo = Evolution(
+        demands=parser.demands(),
+        links=parser.links(),
+        modularity=10,
+        aggregation=True,
+        population_size=25,
+        crossover_prob=0.1,
+        tournament_size=2,
+        mutation_prob=0.33,
+        mutation_power=1,
+        mutation_range=1,
+        target_fitness=0,
+        max_epochs=10000,
+        stale_epochs_limit=1000,
+    )
+    evo.run()
+    Path("result.json").write_text(json.dumps(evo.get_result()))
