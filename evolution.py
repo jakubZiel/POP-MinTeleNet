@@ -32,10 +32,7 @@ class Evolution:
         self.stale_generations_count = 0
 
     def run(self) -> None:
-        self.population = self.create_init_population()
-        self.evaluate_population()
-        self.population.sort(key=lambda spec: spec.fitness)
-        self.log.append(self.population)
+        self.initialize_population()
 
         while self.continue_condition():
             next_pop: List[Specimen] = []
@@ -53,9 +50,8 @@ class Evolution:
 
             self.population = next_pop
             self.current_generation += 1
-            self.evaluate_population()
-            self.population.sort(key=lambda spec: spec.fitness)
-            self.log.append(self.population)
+
+            self.succession()
 
     def continue_condition(self) -> bool:
         if self.best_specimen.fitness <= self.params.target_fitness:
@@ -229,6 +225,12 @@ class Evolution:
             else self.init_population_no_aggregate()
         )
 
+    def initialize_population(self):
+        self.population = self.create_init_population()
+        self.evaluate_population()
+        self.population.sort(key=lambda spec: spec.fitness)
+        self.log.append(self.population)
+
     def init_population_aggregate(self) -> List[Specimen]:
         demands = list(self.demands.values())
         paths = len(demands[0].admissable_paths.paths)
@@ -263,6 +265,11 @@ class Evolution:
             init_population.append(Specimen(new_genome, sys.maxsize))
 
         return init_population
+
+    def succession(self):
+        self.evaluate_population()
+        self.population.sort(key=lambda spec: spec.fitness)
+        self.log.append(self.population)
 
     def should_crossover(self) -> bool:
         return random() <= self.params.crossover_prob
