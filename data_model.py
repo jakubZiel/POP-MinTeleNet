@@ -53,3 +53,22 @@ class Result(TypedDict):
     log: List[List[float]]
     links: List[LinkResult]
     modules: int
+
+@dataclass
+class Network:
+    demands: List[Demand]
+    links: List[Link]
+    modularity: int
+    aggregation: bool
+
+@dataclass
+class AlgorithmParameters:
+    population_size: int
+    crossover_prob: float
+    tournament_size: int
+    mutation_prob: float
+    mutation_power: float
+    mutation_range: int
+    target_fitness: float
+    max_epochs: int
+    stale_epochs_limit: int
