@@ -7,7 +7,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from data_model import AlgorithmParameters, Demand, Link, Network,LinkResult, Result, Specimen
+from data_model import AlgorithmParameters, Demand, Network,LinkResult, Result, Specimen
 from parsing import NetworkParser
 
 
