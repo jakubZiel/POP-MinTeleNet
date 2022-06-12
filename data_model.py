@@ -54,12 +54,14 @@ class Result(TypedDict):
     links: List[LinkResult]
     modules: int
 
+
 @dataclass
 class Network:
     demands: List[Demand]
     links: List[Link]
     modularity: int
     aggregation: bool
+
 
 @dataclass
 class AlgorithmParameters:
