@@ -7,43 +7,23 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 
-from data_model import Demand, Link, LinkResult, Result, Specimen
+from data_model import AlgorithmParameters, Demand, Network,LinkResult, Result, Specimen
 from parsing import NetworkParser
 
 
 class Evolution:
     def __init__(
         self,
-        demands: List[Demand],
-        links: List[Link],
-        modularity: int,
-        aggregation: bool,
-        population_size: int,
-        crossover_prob: float,
-        tournament_size: int,
-        mutation_prob: float,
-        mutation_power: float,
-        mutation_range: int,
-        target_fitness: float,
-        max_epochs: int,
-        stale_epochs_limit: int,
+        network: Network,
+        parameters: AlgorithmParameters
     ):
-        self.demands = {demand.id: demand for demand in demands}
-        self.links = {link.id: link for link in links}
-        self.modularity = modularity
-        self.aggregation = aggregation
+        self.demands = {demand.id: demand for demand in network.demands}
+        self.links = {link.id: link for link in network.links}
+        self.modularity = network.modularity
+        self.aggregation = network.aggregation
 
-        self.population_size = population_size
-        self.crossover_prob = crossover_prob
-        self.mutation_prob = mutation_prob
-        self.mutation_power = mutation_power
-        self.mutation_range = mutation_range
-        self.tournament_size = tournament_size
-
-        self.target_fitness = target_fitness
-        self.max_epochs = max_epochs
-        self.stale_epochs_limit = stale_epochs_limit
-
+        self.params = parameters
+            
         self.population: List[Specimen] = []
         self.best_specimen = Specimen([], sys.maxsize)
         self.prev_best_fitness = math.inf
@@ -52,14 +32,11 @@ class Evolution:
         self.stale_generations_count = 0
 
     def run(self) -> None:
-        self.population = self.create_init_population()
-        self.evaluate_population()
-        self.population.sort(key=lambda spec: spec.fitness)
-        self.log.append(self.population)
+        self.initialize_population()
 
         while self.continue_condition():
             next_pop: List[Specimen] = []
-            for _ in range(self.population_size):
+            for _ in range(self.params.population_size):
                 if self.should_crossover():
                     parent1 = self.select()
                     parent2 = self.select()
@@ -73,15 +50,14 @@ class Evolution:
 
             self.population = next_pop
             self.current_generation += 1
-            self.evaluate_population()
-            self.population.sort(key=lambda spec: spec.fitness)
-            self.log.append(self.population)
+
+            self.succession()
 
     def continue_condition(self) -> bool:
-        if self.best_specimen.fitness <= self.target_fitness:
+        if self.best_specimen.fitness <= self.params.target_fitness:
             return False
 
-        if self.current_generation >= self.max_epochs:
+        if self.current_generation >= self.params.max_epochs:
             return False
 
         best_got_better = self.best_specimen.fitness < self.prev_best_fitness
@@ -89,7 +65,7 @@ class Evolution:
 
         if best_got_better:
             self.stale_generations_count = 0
-        elif self.stale_generations_count + 1 >= self.stale_epochs_limit:
+        elif self.stale_generations_count + 1 >= self.params.stale_epochs_limit:
             return False
         else:
             self.stale_generations_count += 1
@@ -122,8 +98,8 @@ class Evolution:
     def select(self) -> Specimen:
         tournament: List[Specimen] = []
 
-        for _ in range(self.tournament_size):
-            specimen_index = randint(0, self.population_size - 1)
+        for _ in range(self.params.tournament_size):
+            specimen_index = randint(0, self.params.population_size - 1)
             tournament.append(self.population[specimen_index])
 
         tournament.sort(key=lambda spec: spec.fitness)
@@ -141,7 +117,7 @@ class Evolution:
         demand_ids = list(range(0, len(specimen.demands)))
         demands_to_mutate: List[int] = []
 
-        for _ in range(self.mutation_range):
+        for _ in range(self.params.mutation_range):
             chosen_demand_index = randint(0, len(demand_ids) - 1)
             chosen_demand_id = demand_ids[chosen_demand_index]
 
@@ -168,13 +144,13 @@ class Evolution:
 
     def mutation_no_aggregate(self, specimen: Specimen) -> Specimen:
         demands_to_mutate = self.get_demands_to_mutate(specimen)
-        demand_paths = len(specimen.demands[0])
+        demand_paths = len(specimen.demands[0][1])
 
         for demand_to_mutate_index in demands_to_mutate:
             mutation_vector = [0.0] * demand_paths
 
             for path_index in range(demand_paths):
-                mutation_vector[path_index] = np.random.normal(0, self.mutation_power)
+                mutation_vector[path_index] = np.random.normal(0, self.params.mutation_power)
 
             _, demand = specimen.demands[demand_to_mutate_index]
 
@@ -249,12 +225,18 @@ class Evolution:
             else self.init_population_no_aggregate()
         )
 
+    def initialize_population(self):
+        self.population = self.create_init_population()
+        self.evaluate_population()
+        self.population.sort(key=lambda spec: spec.fitness)
+        self.log.append(self.population)
+
     def init_population_aggregate(self) -> List[Specimen]:
         demands = list(self.demands.values())
         paths = len(demands[0].admissable_paths.paths)
         init_population: List[Specimen] = []
 
-        for _ in range(self.population_size):
+        for _ in range(self.params.population_size):
             new_genome: List[Tuple[str, List[float]]] = []
 
             for i_demand in range(len(self.demands)):
@@ -272,7 +254,7 @@ class Evolution:
         paths = len(demands[0].admissable_paths.paths)
         init_population: List[Specimen] = []
 
-        for _ in range(self.population_size):
+        for _ in range(self.params.population_size):
             new_genome: List[Tuple[str, List[float]]] = []
 
             for i_demand in range(len(self.demands)):
@@ -284,11 +266,16 @@ class Evolution:
 
         return init_population
 
+    def succession(self):
+        self.evaluate_population()
+        self.population.sort(key=lambda spec: spec.fitness)
+        self.log.append(self.population)
+
     def should_crossover(self) -> bool:
-        return random() <= self.crossover_prob
+        return random() <= self.params.crossover_prob
 
     def should_mutate(self) -> bool:
-        return random() <= self.mutation_prob
+        return random() <= self.params.mutation_prob
 
     def evaluate_population(self) -> None:
         for spec in self.population:
@@ -326,11 +313,15 @@ class Evolution:
 
 if __name__ == "__main__":
     parser = NetworkParser(Path("polska/polska.xml"))
-    evo = Evolution(
+
+    net = Network(
         demands=parser.demands(),
         links=parser.links(),
         modularity=10,
-        aggregation=True,
+        aggregation=False
+    )
+
+    params = AlgorithmParameters(
         population_size=25,
         crossover_prob=0.1,
         tournament_size=2,
@@ -341,5 +332,10 @@ if __name__ == "__main__":
         max_epochs=10000,
         stale_epochs_limit=1000,
     )
+
+    evo = Evolution(
+        network=net,
+        parameters=params
+    )
     evo.run()
-    Path("result.json").write_text(json.dumps(evo.get_result()))
+    Path("results/result.json").write_text(json.dumps(evo.get_result()))
