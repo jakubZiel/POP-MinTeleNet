@@ -1,4 +1,3 @@
-from datetime import datetime
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -82,21 +81,9 @@ class EvolutionRunner:
                                     "stale_epochs_limit": self.params.max_epochs,
                                 }
                                 counter += 1
-                                if counter % 100 == 1:
-                                    print(
-                                        f"{datetime.now()}: generated {counter} of {self.count_params_combinations()}"
-                                    )
+                                if counter % 100 == 0:
+                                    print(f"generated {counter}")
                                 yield params
-
-    def count_params_combinations(self) -> int:
-        return (
-            len(self.params.mutation_ranges)
-            * len(self.params.mutation_powers)
-            * len(self.params.mutation_probs)
-            * len(self.params.tournament_sizes)
-            * len(self.params.crossover_probs)
-            * len(self.params.population_sizes)
-        )
 
 
 @dataclass(frozen=True)
