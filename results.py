@@ -34,35 +34,53 @@ def make_naive_report(results: Sequence[NaiveResult]):
 
 def make_evo_report(results: Sequence[EvoResult]):
     print("Evolution report")
-    by_aggr = group_results_by_aggregation(result)
+    by_aggr = group_results_by_aggregation(results)
     print()
-    make_evo_aggr_report(by_aggr(True))
+    make_evo_aggr_report(by_aggr[True])
     print()
-    make_evo_no_aggr_report(by_aggr(False))
+    make_evo_no_aggr_report(by_aggr[False])
 
 
-def make_evo_aggr_report(results: Sequence[NaiveResult]):
+def make_evo_aggr_report(results: Sequence[EvoResult]):
     print("With aggregation")
-    by_modularity = group_results_by_modularity(results)
-    aggr_by_modularity_by_params = {
-        mod: group_results_by_parameters(results)
-        for mod, results in aggr_by_modularity.items()
-    }
-    aggr_averagized_by_modularity_by_params = {
-        mod: {
-            modules: averigize_results(results)
-            for modules, results in by_params.items()
-        }
-        for mod, by_params in aggr_by_modularity_by_params.items()
-    }
-    for mod, results in aggr_averagized_by_modularity_by_params.items():
-        best = min(result.score for result in results.values())
-        print(f"Best for modularity {mod} is {best}")
+    make_report(results)
 
 
-def make_evo_no_aggr_report(results: Sequence[NaiveResult]):
+def make_evo_no_aggr_report(results: Sequence[EvoResult]):
     print("Without aggregation")
-    pass
+    make_report(results)
+
+
+def make_report(results: Sequence[EvoResult]):
+    by_modularity = group_results_by_modularity(results)
+    by_modularity_by_params = {
+        mod: group_results_by_parameters(results)
+        for mod, results in by_modularity.items()
+    }
+
+    for mod in by_modularity_by_params.keys():
+        avgres = sum([len(x) for x in by_modularity_by_params[mod].values()]) / len(by_modularity_by_params[mod].keys())
+        print(f"for mod {mod} there is {len(by_modularity_by_params[mod].keys())} params with average number of results {avgres}")
+
+    averagized_by_modularity_by_params = {
+        mod: {
+            params: averigize_results(results)
+            for params, results in by_params.items()
+        }
+        for mod, by_params in by_modularity_by_params.items()
+    }
+    score_by_modularity_by_params = {
+        mod: {
+            params: score_result(result)
+            for params, result in by_params.items()
+        }
+        for mod, by_params in averagized_by_modularity_by_params.items()
+    }
+    for mod in score_by_modularity_by_params.keys():
+        scored = sorted(score_by_modularity_by_params[mod].items(), key=lambda x:x[1])
+        print(f"Top results for modularity {mod}")
+        for i in range(3):
+            print(f"{i+1} - score {scored[i][1]} params {scored[i][0]}")
 
 
 def parse_evolution_results() -> Sequence[EvoResult]:
@@ -139,6 +157,10 @@ def averigize_results(results: Sequence[EvoResult]) -> EvoResult:
         log_of_best=log,
         score=score,
     )
+
+def score_result(result: EvoResult) -> float:
+    assert(len(result.log_of_best) == 1001)
+    return sum(result.log_of_best) / len(result.log_of_best)
 
 
 def parameters_to_string_aggr(p: AlgorithmParameters) -> str:
