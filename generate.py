@@ -14,7 +14,7 @@ from runner import (
 
 _RESULTS_PATH = Path("results")
 
-_MODULARITIES = [1, 10, 50]
+_MODULARITIES = [1, 50, 500]
 
 
 def generate_aggregation_one_repeat(args: Tuple[str, Sequence[Demand], Sequence[Link]]):
