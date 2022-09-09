@@ -1,5 +1,5 @@
-from dataclasses import dataclass
 import json
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Iterator, Sequence
 
@@ -92,7 +92,7 @@ def parse_evolution_results() -> Sequence[EvoResult]:
 
             log_of_best = [max(gen) for gen in result["log"]]
             assert len(log_of_best) == 1001
-            
+
             best_until_now = 1000000000
             for i in range(len(log_of_best)):
                 if log_of_best[i] <= best_until_now:

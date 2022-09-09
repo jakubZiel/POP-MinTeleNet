@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Sequence
+
 import seaborn  # type: ignore
 
 from results import (
@@ -65,7 +66,7 @@ def make_plot(
     seaborn.set_theme(style="darkgrid")  # type: ignore
     plot = seaborn.relplot(data=dataset, x="generation", y="modules", hue="parameters", kind="line")  # type: ignore
     plot.savefig("charts/" + name + "-full.png")  # type: ignore
-    plot.set(ylim=zoom) # type: ignore
+    plot.set(ylim=zoom)  # type: ignore
     plot.savefig("charts/" + name + "-zoom.png")  # type: ignore
 
 
@@ -74,14 +75,10 @@ def main():
     make_plot(
         "test",
         plotdata,
-        params=[
-            "40, 0.2, 2, 0.25, 1",
-            "100, 1.0, 4, 0.1, 1",
-            "40, 1.0, 4, 0.1, 1",
-        ],
+        params=["40, 0.2, 2, 0.25, 1", "100, 1.0, 4, 0.1, 1", "40, 1.0, 4, 0.1, 1"],
         modularity=50,
         aggregation=True,
-        zoom= (450, 500),
+        zoom=(450, 500),
     )
 
 
