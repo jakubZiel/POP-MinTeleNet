@@ -13,6 +13,8 @@ class EvoResult:
     aggregation: bool
     log_of_best: Sequence[float]
     score: float
+    score_scaled: float
+    best_ever: float
 
 
 def main():
@@ -22,8 +24,6 @@ def main():
     make_naive_report(naive)
     print("\n")
     make_evo_report(evo)
-
-
 
 
 def make_naive_report(results: Sequence[NaiveResult]):
@@ -59,28 +59,29 @@ def make_report(results: Sequence[EvoResult]):
     }
 
     for mod in by_modularity_by_params.keys():
-        avgres = sum([len(x) for x in by_modularity_by_params[mod].values()]) / len(by_modularity_by_params[mod].keys())
-        print(f"for mod {mod} there is {len(by_modularity_by_params[mod].keys())} params with average number of results {avgres}")
+        avgres = sum([len(x) for x in by_modularity_by_params[mod].values()]) / len(
+            by_modularity_by_params[mod].keys()
+        )
+        print(
+            f"for mod {mod} there is {len(by_modularity_by_params[mod].keys())} params with average number of results {avgres}"
+        )
 
     averagized_by_modularity_by_params = {
         mod: {
-            params: averigize_results(results)
-            for params, results in by_params.items()
+            params: averigize_results(results) for params, results in by_params.items()
         }
         for mod, by_params in by_modularity_by_params.items()
     }
-    score_by_modularity_by_params = {
-        mod: {
-            params: score_result(result)
-            for params, result in by_params.items()
-        }
-        for mod, by_params in averagized_by_modularity_by_params.items()
-    }
-    for mod in score_by_modularity_by_params.keys():
-        scored = sorted(score_by_modularity_by_params[mod].items(), key=lambda x:x[1])
-        print(f"Top results for modularity {mod}")
-        for i in range(3):
-            print(f"{i+1} - score {scored[i][1]} params {scored[i][0]}")
+    for mod, res in averagized_by_modularity_by_params.items():
+        print(f"Best results for modularity {mod}")
+        by_score = sorted(res.items(), key=lambda x: x[1].score)
+        print(
+            f"Best score {by_score[0][1].score} with scaled score {by_score[0][1].score_scaled} with best ever {by_score[0][1].best_ever} for params {by_score[0][0]}"
+        )
+        by_scaled = sorted(res.items(), key=lambda x: x[1].score_scaled)
+        print(
+            f"Best scaled score {by_scaled[0][1].score_scaled} with score {by_scaled[0][1].score} with best ever {by_score[0][1].best_ever} for params {by_scaled[0][0]}"
+        )
 
 
 def parse_evolution_results() -> Sequence[EvoResult]:
@@ -88,6 +89,21 @@ def parse_evolution_results() -> Sequence[EvoResult]:
     for file in Path("results").iterdir():
         if file.name.startswith("polska-evolution"):
             result: EvolutionResult = json.loads(file.read_text())
+
+            log_of_best = [max(gen) for gen in result["log"]]
+            assert len(log_of_best) == 1001
+            
+            best_until_now = 1000000000
+            for i in range(len(log_of_best)):
+                if log_of_best[i] <= best_until_now:
+                    best_until_now = log_of_best[i]
+                else:
+                    log_of_best[i] = best_until_now
+
+            score_scaled = 0
+            for i in range(len(log_of_best)):
+                score_scaled += log_of_best[i] * i / len(log_of_best) / 500
+
             results.append(
                 EvoResult(
                     parameters=parameters_to_string_aggr(result["parameters"])
@@ -95,8 +111,10 @@ def parse_evolution_results() -> Sequence[EvoResult]:
                     else parameters_to_string_no_aggr(result["parameters"]),
                     modularity=result["modularity"],
                     aggregation=result["aggregation"],
-                    log_of_best=[max(gen) for gen in result["log"]],
-                    score=result["modules"],
+                    log_of_best=log_of_best,
+                    score=sum(log_of_best) / len(log_of_best),
+                    score_scaled=score_scaled,
+                    best_ever=min(log_of_best),
                 )
             )
     return results
@@ -147,6 +165,8 @@ def group_results_by_parameters(
 
 def averigize_results(results: Sequence[EvoResult]) -> EvoResult:
     score = sum(result.score for result in results) / len(results)
+    score_scaled = sum(result.score_scaled for result in results) / len(results)
+    best_ever = sum(result.best_ever for result in results) / len(results)
     log: list[float] = []
     for i in range(len(results[0].log_of_best)):
         log.append(sum(x.log_of_best[i] for x in results) / len(results))
@@ -156,11 +176,9 @@ def averigize_results(results: Sequence[EvoResult]) -> EvoResult:
         aggregation=results[0].aggregation,
         log_of_best=log,
         score=score,
+        score_scaled=score_scaled,
+        best_ever=best_ever,
     )
-
-def score_result(result: EvoResult) -> float:
-    assert(len(result.log_of_best) == 1001)
-    return sum(result.log_of_best) / len(result.log_of_best)
 
 
 def parameters_to_string_aggr(p: AlgorithmParameters) -> str:
@@ -172,7 +190,7 @@ def parameters_to_string_aggr(p: AlgorithmParameters) -> str:
         "mutation_range",
     ]
     vals: Iterator[object] = (p[key] for key in keys)
-    return ",".join(map(str, vals))
+    return ", ".join(map(str, vals))
 
 
 def parameters_to_string_no_aggr(p: AlgorithmParameters) -> str:
