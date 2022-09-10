@@ -6,7 +6,7 @@ from typing import Iterator, Sequence
 from data_model import AlgorithmParameters, EvolutionResult, NaiveResult
 
 
-@dataclass
+@dataclass(frozen=True)
 class EvoResult:
     parameters: str
     modularity: int
@@ -74,13 +74,23 @@ def make_report(results: Sequence[EvoResult]):
     }
     for mod, res in averagized_by_modularity_by_params.items():
         print(f"Best results for modularity {mod}")
-        by_score = sorted(res.items(), key=lambda x: x[1].score)
+        by_score = sorted(
+            res.items(), key=lambda x: (x[1].score, x[1].score_scaled, x[1].best_ever)
+        )
         print(
             f"Best score {by_score[0][1].score} with scaled score {by_score[0][1].score_scaled} with best ever {by_score[0][1].best_ever} for params {by_score[0][0]}"
         )
-        by_scaled = sorted(res.items(), key=lambda x: x[1].score_scaled)
+        by_scaled = sorted(
+            res.items(), key=lambda x: (x[1].score_scaled, x[1].best_ever, x[1].score)
+        )
         print(
-            f"Best scaled score {by_scaled[0][1].score_scaled} with score {by_scaled[0][1].score} with best ever {by_score[0][1].best_ever} for params {by_scaled[0][0]}"
+            f"Best scaled score {by_scaled[0][1].score_scaled} with score {by_scaled[0][1].score} with best ever {by_scaled[0][1].best_ever} for params {by_scaled[0][0]}"
+        )
+        by_best = sorted(
+            res.items(), key=lambda x: (x[1].best_ever, x[1].score_scaled, x[1].score)
+        )
+        print(
+            f"Best ever {by_best[0][1].best_ever} with score {by_best[0][1].score} with scaled score {by_best[0][1].score_scaled} for params {by_best[0][0]}"
         )
 
 
@@ -106,9 +116,7 @@ def parse_evolution_results() -> Sequence[EvoResult]:
 
             results.append(
                 EvoResult(
-                    parameters=parameters_to_string_aggr(result["parameters"])
-                    if result["aggregation"]
-                    else parameters_to_string_no_aggr(result["parameters"]),
+                    parameters=parameters_to_string(result["parameters"]),
                     modularity=result["modularity"],
                     aggregation=result["aggregation"],
                     log_of_best=log_of_best,
@@ -181,7 +189,7 @@ def averigize_results(results: Sequence[EvoResult]) -> EvoResult:
     )
 
 
-def parameters_to_string_aggr(p: AlgorithmParameters) -> str:
+def parameters_to_string(p: AlgorithmParameters) -> str:
     keys = [
         "population_size",
         "crossover_prob",
@@ -191,10 +199,6 @@ def parameters_to_string_aggr(p: AlgorithmParameters) -> str:
     ]
     vals: Iterator[object] = (p[key] for key in keys)
     return ", ".join(map(str, vals))
-
-
-def parameters_to_string_no_aggr(p: AlgorithmParameters) -> str:
-    return parameters_to_string_aggr(p) + f",{p['mutation_power']}"
 
 
 if __name__ == "__main__":

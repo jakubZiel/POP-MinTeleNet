@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 from typing import Any, Sequence
+from pathlib import Path
 
 import seaborn  # type: ignore
 
@@ -60,25 +61,72 @@ def make_plot(
     params: Sequence[str],
     aggregation: bool,
     modularity: int,
-    zoom: tuple[float, float],
+    zoom: tuple[float, float] | None,
 ):
     dataset = make_plot_dataset(plotdata, params, aggregation, modularity)
     seaborn.set_theme(style="darkgrid")  # type: ignore
     plot = seaborn.relplot(data=dataset, x="generation", y="modules", hue="parameters", kind="line")  # type: ignore
+    Path("charts").mkdir(exist_ok=True)
     plot.savefig("charts/" + name + "-full.png")  # type: ignore
-    plot.set(ylim=zoom)  # type: ignore
-    plot.savefig("charts/" + name + "-zoom.png")  # type: ignore
+    if zoom is not None:
+        plot.set(ylim=zoom)  # type: ignore
+        plot.savefig("charts/" + name + "-zoom.png")  # type: ignore
 
 
 def main():
     plotdata = make_plotdata()
     make_plot(
-        "test",
+        "aggr_mod1",
         plotdata,
-        params=["40, 0.2, 2, 0.25, 1", "100, 1.0, 4, 0.1, 1", "40, 1.0, 4, 0.1, 1"],
+        params=["40, 0.2, 2, 0.25, 1", "100, 1.0, 8, 0.1, 1", "40, 1.0, 4, 0.1, 1"],
+        modularity=1,
+        aggregation=True,
+        zoom=(22400, 23500),
+    )
+    make_plot(
+        "aggr_mod50",
+        plotdata,
+        params=[
+            "40, 0.2, 2, 0.25, 1",
+            "100, 1.0, 4, 0.1, 1",
+            "40, 1.0, 4, 0.1, 1",
+            "10, 0.5, 8, 0.5, 1",
+        ],
         modularity=50,
         aggregation=True,
-        zoom=(450, 500),
+        zoom=(450, 490),
+    )
+    make_plot(
+        "aggr_mod500",
+        plotdata,
+        params=["40, 0.2, 2, 0.25, 1", "100, 1.0, 2, 0.1, 1"],
+        modularity=500,
+        aggregation=True,
+        zoom=None,
+    )
+    make_plot(
+        "no-aggr_mod1",
+        plotdata,
+        params=["40, 0.2, 3, 0.1, 1", "100, 0.0, 9, 0.5, 1"],
+        modularity=1,
+        aggregation=False,
+        zoom=None,
+    )
+    make_plot(
+        "no-aggr_mod50",
+        plotdata,
+        params=["40, 0.2, 3, 0.1, 1", "100, 0.0, 9, 1.0, 1"],
+        modularity=50,
+        aggregation=False,
+        zoom=None,
+    )
+    make_plot(
+        "no-aggr_mod500",
+        plotdata,
+        params=["40, 0.2, 3, 0.1, 1", "100, 0.0, 9, 1.0, 1"],
+        modularity=500,
+        aggregation=False,
+        zoom=None,
     )
 
 
